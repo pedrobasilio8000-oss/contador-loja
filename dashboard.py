@@ -4,10 +4,7 @@ import plotly.express as px
 from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-
-# Configuração Google Sheets
-CREDENCIAIS = "contador-loja-4768ab5770f4.json"
-ID_PLANILHA = "1W_7Won4bMFdtFxm6gVsPcbO-9mcuXqutD9KdTmJrXD8"
+import json
 
 st.set_page_config(
     page_title="Contador de Visitantes",
@@ -17,13 +14,17 @@ st.set_page_config(
 
 st.title("🏪 Dashboard - Contador de Visitantes")
 
+ID_PLANILHA = "1W_7Won4bMFdtFxm6gVsPcbO-9mcuXqutD9KdTmJrXD8"
+
 @st.cache_data(ttl=30)
 def carregar_dados():
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_file(CREDENCIAIS, scopes=scopes)
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(ID_PLANILHA).sheet1
     dados = sheet.get_all_records()
@@ -44,7 +45,6 @@ df["Data"] = pd.to_datetime(df["Data"], format="%d/%m/%Y")
 df["Hora_dt"] = pd.to_datetime(df["Hora"], format="%H:%M:%S")
 df["Hora_int"] = df["Hora_dt"].dt.hour
 
-# Filtro de data
 st.sidebar.header("Filtros")
 datas = df["Data"].dt.date.unique()
 data_selecionada = st.sidebar.selectbox(
@@ -61,7 +61,6 @@ df_filtrado = df[df["Data"].dt.date == data_selecionada]
 total_passagens = len(df_filtrado)
 total_visitantes = total_passagens // 2
 
-# Cards no topo
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total de Passagens", total_passagens)
 col2.metric("Visitantes Estimados", total_visitantes)
